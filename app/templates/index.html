@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerEdge Fan Control — IPMI Manager</title>
+<style>
+/* ============================================================
+   DELL iDRAC / OpenManage Design System
+   Primary:  #0076CE  (Dell Blue)
+   Header:   #1A2634  (Dell Navy)
+   Sidebar:  #1E2D3D
+   Page BG:  #EBEBEB
+   Surface:  #FFFFFF
+   Border:   #C8C8C8
+   Text:     #1A1A1A
+   Muted:    #5E5E5E
+   Green:    #2E7D32
+   Red:      #C62828
+   Orange:   #E65100
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --dell-blue:       #0076CE;
+  --dell-blue-dark:  #005A9E;
+  --dell-blue-light: #E8F3FB;
+  --dell-navy:       #1A2634;
+  --dell-navy2:      #243040;
+  --dell-sidebar:    #1E2D3D;
+  --dell-sidebar-hover: #2A3D52;
+  --dell-sidebar-active: #0076CE;
+  --page-bg:         #EBEBEB;
+  --surface:         #FFFFFF;
+  --surface2:        #F5F7F9;
+  --border:          #C8C8C8;
+  --border-light:    #E0E0E0;
+  --text:            #1A1A1A;
+  --muted:           #5E5E5E;
+  --green:           #2E7D32;
+  --green-bg:        #E8F5E9;
+  --red:             #C62828;
+  --red-bg:          #FFEBEE;
+  --orange:          #E65100;
+  --orange-bg:       #FFF3E0;
+  --radius:          3px;
+  --shadow:          0 1px 4px rgba(0,0,0,.12);
+  --shadow-md:       0 2px 8px rgba(0,0,0,.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: 'Open Sans', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Top Navigation Bar ── */
+.topbar {
+  background: var(--dell-navy);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 0;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-right: 1px solid rgba(255,255,255,.15);
+  padding-right: 20px;
+  margin-right: 20px;
+  text-decoration: none;
+}
+.dell-wordmark {
+  font-size: 22px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: .04em;
+  font-family: 'Open Sans', Arial, sans-serif;
+  line-height: 1;
+}
+.dell-wordmark em {
+  display: inline-block;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  text-align: center;
+  line-height: 22px;
+  font-style: normal;
+  font-size: 17px;
+  margin-right: 1px;
+}
+.topbar-product {
+  font-size: 13px;
+  color: rgba(255,255,255,.7);
+  font-weight: 400;
+}
+.topbar-product strong {
+  color: #fff;
+  font-weight: 600;
+}
+.topbar-spacer { flex: 1; }
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,.7);
+  font-size: 12px;
+}
+.topbar-user svg { width: 16px; height: 16px; }
+
+/* ── Layout ── */
+.layout {
+  display: flex;
+  height: calc(100vh - 48px);
+}
+
+/* ── Left Sidebar ── */
+.sidebar {
+  width: 240px;
+  min-width: 200px;
+  background: var(--dell-sidebar);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-section-label {
+  padding: 14px 16px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,.35);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.sidebar-add-btn {
+  margin: 8px 12px 4px;
+  background: var(--dell-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background .15s;
+  font-family: inherit;
+}
+.sidebar-add-btn:hover { background: var(--dell-blue-dark); }
+.server-list { flex: 1; overflow-y: auto; padding: 4px 0 8px; }
+.server-list::-webkit-scrollbar { width: 4px; }
+.server-list::-webkit-scrollbar-track { background: transparent; }
+.server-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+
+.server-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: background .12s;
+  border-left: 3px solid transparent;
+  color: rgba(255,255,255,.7);
+}
+.server-item:hover {
+  background: var(--dell-sidebar-hover);
+  color: #fff;
+}
+.server-item.active {
+  background: rgba(0,118,206,.2);
+  border-left-color: var(--dell-blue);
+  color: #fff;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  flex-shrink: 0;
+}
+.status-dot.online  { background: #4CAF50; }
+.status-dot.offline { background: #EF5350; }
+.server-item .info { flex: 1; min-width: 0; }
+.server-item .sname {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: inherit;
+}
+.server-item .shost {
+  font-size: 11px;
+  color: rgba(255,255,255,.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.server-item.active .shost { color: rgba(255,255,255,.55); }
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  font-size: 11px;
+  color: rgba(255,255,255,.3);
+}
+
+/* ── Main Content ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Breadcrumb bar */
+.breadcrumb-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 24px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.breadcrumb-bar a { color: var(--dell-blue); text-decoration: none; }
+.breadcrumb-bar a:hover { text-decoration: underline; }
+
+.content { padding: 20px 24px; flex: 1; }
+
+/* Page title row */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--dell-blue);
+}
+.page-title { font-size: 18px; font-weight: 700; color: var(--text); }
+.page-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.page-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+/* ── Cards / Sections ── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.section-header {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--dell-blue);
+  border-radius: 2px;
+}
+.section-body { padding: 16px 14px; }
+
+/* ── Property table (label/value grid) ── */
+.prop-table { width: 100%; border-collapse: collapse; }
+.prop-table tr { border-bottom: 1px solid var(--border-light); }
+.prop-table tr:last-child { border-bottom: none; }
+.prop-table td { padding: 8px 10px; vertical-align: top; }
+.prop-table td:first-child {
+  width: 42%;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.prop-table td:last-child { color: var(--text); }
+
+/* ── Control rows ── */
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.control-row:last-child { border-bottom: none; padding-bottom: 0; }
+.control-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.control-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Toggle / Checkbox Switch ── */
+.dell-toggle {
+  position: relative;
+  width: 44px; height: 22px; flex-shrink: 0;
+}
+.dell-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.dell-toggle-track {
+  position: absolute; inset: 0;
+  background: #C8C8C8;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.dell-toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  top: 3px; left: 3px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform .2s;
+}
+.dell-toggle input:checked + .dell-toggle-track { background: var(--dell-blue); }
+.dell-toggle input:checked + .dell-toggle-track::after { transform: translateX(22px); }
+.dell-toggle input:focus + .dell-toggle-track { outline: 2px solid var(--dell-blue); outline-offset: 1px; }
+
+/* ── Fan Speed Slider ── */
+.speed-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.speed-number {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--dell-blue);
+  line-height: 1;
+}
+.speed-unit { font-size: 16px; color: var(--muted); font-weight: 600; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(to right, var(--dell-blue) 0%, var(--dell-blue) var(--fill,20%), #C8C8C8 var(--fill,20%), #C8C8C8 100%);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--dell-blue);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--dell-blue), 0 2px 4px rgba(0,0,0,.2);
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 3px rgba(0,118,206,.25), 0 2px 4px rgba(0,0,0,.2);
+}
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.speed-note { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+/* ── Buttons ── */
+.btn {
+  padding: 6px 16px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: .15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--dell-blue);
+  color: #fff;
+  border-color: var(--dell-blue);
+}
+.btn-primary:hover { background: var(--dell-blue-dark); border-color: var(--dell-blue-dark); }
+.btn-secondary {
+  background: var(--surface);
+  color: var(--dell-blue);
+  border-color: var(--dell-blue);
+}
+.btn-secondary:hover { background: var(--dell-blue-light); }
+.btn-ghost {
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--border);
+}
+.btn-ghost:hover { border-color: var(--dell-blue); color: var(--dell-blue); background: var(--dell-blue-light); }
+.btn-danger {
+  background: var(--surface);
+  color: var(--red);
+  border-color: var(--red);
+}
+.btn-danger:hover { background: var(--red-bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Fan Readings Table ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table thead tr { background: var(--surface2); }
+.data-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text);
+}
+.data-table tbody tr:hover { background: var(--dell-blue-light); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Status badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.badge-ok   { background: var(--green-bg); color: var(--green); }
+.badge-ok::before { background: var(--green); }
+.badge-warn { background: var(--orange-bg); color: var(--orange); }
+.badge-warn::before { background: var(--orange); }
+.badge-err  { background: var(--red-bg); color: var(--red); }
+.badge-err::before { background: var(--red); }
+.badge-info { background: var(--dell-blue-light); color: var(--dell-blue); }
+.badge-info::before { background: var(--dell-blue); }
+
+/* ── Empty / Placeholder states ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 14px;
+  color: var(--muted);
+  text-align: center;
+  padding: 40px;
+}
+.empty-state .icon-wrap {
+  width: 72px; height: 72px;
+  background: var(--dell-blue-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-state .icon-wrap svg { color: var(--dell-blue); }
+.empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+.empty-state p { font-size: 13px; max-width: 280px; line-height: 1.6; }
+
+/* ── Form (Modal) ── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  width: 500px;
+  max-width: 96vw;
+  box-shadow: var(--shadow-md);
+}
+.modal-titlebar {
+  background: var(--dell-navy);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-titlebar h2 { font-size: 14px; font-weight: 700; color: #fff; }
+.modal-titlebar button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.6);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: inherit;
+}
+.modal-titlebar button:hover { color: #fff; }
+.modal-body { padding: 20px 18px 16px; }
+.modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.span-2 { grid-column: span 2; }
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.form-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+  width: 100%;
+}
+.form-input:focus {
+  border-color: var(--dell-blue);
+  box-shadow: 0 0 0 2px rgba(0,118,206,.2);
+}
+
+/* ── Alert / Info boxes ── */
+.alert {
+  padding: 10px 14px;
+  border-left: 3px solid;
+  font-size: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alert-info  { background: var(--dell-blue-light); border-color: var(--dell-blue); color: var(--dell-blue-dark); }
+.alert-error { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.alert-ok    { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
+/* ── Toast Notifications ── */
+.toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+.toast {
+  background: var(--dell-navy);
+  color: #fff;
+  border-left: 4px solid var(--dell-blue);
+  padding: 11px 16px;
+  font-size: 13px;
+  min-width: 260px;
+  box-shadow: var(--shadow-md);
+  animation: slideIn .2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast::before { content: 'ℹ'; font-size: 15px; }
+.toast.success { border-color: var(--green); }
+.toast.success::before { content: '✓'; }
+.toast.error   { border-color: var(--red); }
+.toast.error::before { content: '✕'; }
+@keyframes slideIn {
+  from { transform: translateX(30px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Conn status inline ── */
+.conn-ok   { color: var(--green); font-weight: 600; }
+.conn-err  { color: var(--red);   font-weight: 600; }
+.conn-wait { color: var(--muted); }
+
+/* ── Scrollbar (main) ── */
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-track { background: var(--page-bg); }
+.main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     TOP NAVIGATION BAR
+════════════════════════════════════ -->
+<nav class="topbar">
+  <div class="topbar-logo">
+    <span class="dell-wordmark">D<em>E</em>LL</span>
+  </div>
+  <span class="topbar-product"><strong>Fan Control</strong> &nbsp;|&nbsp; iDRAC IPMI Manager</span>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-user">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    Administrator
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════
+     MAIN LAYOUT
+════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section-label">Managed Systems</div>
+    <button class="sidebar-add-btn" onclick="openAddModal()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Server
+    </button>
+    <div class="server-list" id="serverList"></div>
+    <div class="sidebar-footer">PowerEdge Fan Control</div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="mainContent">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar" id="breadcrumb">
+      <a href="#">Fan Control</a>
+      <span>›</span>
+      <span>Overview</span>
+    </div>
+    <!-- Content area -->
+    <div class="content" id="contentArea">
+      <div class="empty-state">
+        <div class="icon-wrap">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+        </div>
+        <h3>No Server Selected</h3>
+        <p>Add a Dell PowerEdge server using the sidebar, then select it to manage fan settings.</p>
+        <button class="btn btn-primary" onclick="openAddModal()">Add Server</button>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<!-- ══════════════════════════════════
+     TOAST CONTAINER
+════════════════════════════════════ -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ══════════════════════════════════
+     ADD / EDIT SERVER MODAL
+════════════════════════════════════ -->
+<div class="modal-overlay" id="serverModal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-titlebar">
+      <h2 id="modalTitle">Add Managed System</h2>
+      <button onclick="closeModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label class="form-label" for="f_model">Server Model</label>
+          <select class="form-input" id="f_model">
+            <optgroup label="12th Generation — 2012–2014 (iDRAC7)">
+              <option value="R320">PowerEdge R320</option>
+              <option value="R420">PowerEdge R420</option>
+              <option value="R520">PowerEdge R520</option>
+              <option value="R620">PowerEdge R620</option>
+              <option value="R720">PowerEdge R720</option>
+              <option value="R720xd">PowerEdge R720xd</option>
+              <option value="R820">PowerEdge R820</option>
+              <option value="R920">PowerEdge R920</option>
+            </optgroup>
+            <optgroup label="13th Generation — 2014–2016 (iDRAC8)">
+              <option value="R230">PowerEdge R230</option>
+              <option value="R330">PowerEdge R330</option>
+              <option value="R430">PowerEdge R430</option>
+              <option value="R530">PowerEdge R530</option>
+              <option value="R630">PowerEdge R630</option>
+              <option value="R730">PowerEdge R730</option>
+              <option value="R730xd" selected>PowerEdge R730xd</option>
+              <option value="R830">PowerEdge R830</option>
+              <option value="R930">PowerEdge R930</option>
+            </optgroup>
+            <optgroup label="14th Generation — 2017–2019 (iDRAC9)">
+              <option value="R240">PowerEdge R240</option>
+              <option value="R340">PowerEdge R340</option>
+              <option value="R440">PowerEdge R440</option>
+              <option value="R540">PowerEdge R540</option>
+              <option value="R640">PowerEdge R640</option>
+              <option value="R740">PowerEdge R740</option>
+              <option value="R740xd">PowerEdge R740xd</option>
+              <option value="R840">PowerEdge R840</option>
+              <option value="R940">PowerEdge R940</option>
+              <option value="R940xa">PowerEdge R940xa</option>
+            </optgroup>
+            <optgroup label="15th Generation — 2020–2022 (iDRAC9)">
+              <option value="R250">PowerEdge R250</option>
+              <option value="R350">PowerEdge R350</option>
+              <option value="R450">PowerEdge R450</option>
+              <option value="R550">PowerEdge R550</option>
+              <option value="R650">PowerEdge R650</option>
+              <option value="R650xs">PowerEdge R650xs</option>
+              <option value="R750">PowerEdge R750</option>
+              <option value="R750xa">PowerEdge R750xa</option>
+              <option value="R750xs">PowerEdge R750xs</option>
+              <option value="R850">PowerEdge R850</option>
+              <option value="R950">PowerEdge R950</option>
+            </optgroup>
+            <optgroup label="16th Generation — 2022–2024 (iDRAC10)">
+              <option value="R260">PowerEdge R260</option>
+              <option value="R360">PowerEdge R360</option>
+              <option value="R460">PowerEdge R460</option>
+              <option value="R560">PowerEdge R560</option>
+              <option value="R660">PowerEdge R660</option>
+              <option value="R660xs">PowerEdge R660xs</option>
+              <option value="R760">PowerEdge R760</option>
+              <option value="R760xa">PowerEdge R760xa</option>
+              <option value="R860">PowerEdge R860</option>
+              <option value="R960">PowerEdge R960</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="Other">Other / Unknown</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f_name">System Name</label>
+          <input class="form-input" type="text" id="f_name" placeholder="e.g. Lab-Server-01">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f_host">iDRAC IP / Hostname</label>
+          <input class="form-input" type="text" id="f_host" placeholder="192.168.1.100">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f_port">IPMI Port</label>
+          <input class="form-input" type="number" id="f_port" value="623">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="f_user">iDRAC Username</label>
+          <input class="form-input" type="text" id="f_user" placeholder="root">
+        </div>
+        <div class="form-group span-2">
+          <label class="form-label" for="f_pass">iDRAC Password</label>
+          <input class="form-input" type="password" id="f_pass" placeholder="Leave blank to keep existing password">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveServer()">Save System</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════ -->
+<script>
+let servers = [];
+let selectedId = null;
+let editingId = null;
+
+// 12th-gen models don't support the 0x30/0xce 3rd-party PCIe fan ramp-up OEM command
+const GEN12_MODELS = new Set(['R320','R420','R520','R620','R720','R720xd','R820','R920']);
+
+// ── API helper ──────────────────────────────────────────────
+async function api(method, path, body) {
+  const res = await fetch('/api' + path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res;
+}
+
+// ── Toast ───────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+// ── Escape HTML ─────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Sidebar ─────────────────────────────────────────────────
+async function loadServers() {
+  const res = await api('GET', '/servers');
+  servers = await res.json();
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('serverList');
+  list.innerHTML = '';
+  if (!servers.length) {
+    list.innerHTML = '<div style="padding:14px 16px; font-size:12px; color:rgba(255,255,255,.3);">No servers configured.</div>';
+    return;
+  }
+  servers.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'server-item' + (s.id === selectedId ? ' active' : '');
+    el.innerHTML = `
+      <div class="status-dot" id="dot-${s.id}"></div>
+      <div class="info">
+        <div class="sname">${esc(s.name)}</div>
+        <div class="shost">${esc(s.host)}</div>
+      </div>`;
+    el.onclick = () => selectServer(s.id);
+    list.appendChild(el);
+  });
+}
+
+// ── Server Panel ────────────────────────────────────────────
+async function selectServer(id) {
+  selectedId = id;
+  renderSidebar();
+  const res = await api('GET', `/servers/${id}`);
+  const s = await res.json();
+  renderServerPanel(s);
+  pingServer(s);
+  loadFans(s);
+}
+
+function modelLabel(model) {
+  if (!model || model === 'Other') return 'Other PowerEdge';
+  return 'PowerEdge ' + model;
+}
+
+function renderServerPanel(s) {
+  // Update breadcrumb
+  document.getElementById('breadcrumb').innerHTML =
+    `<a href="#">Fan Control</a> <span>›</span> <span>${esc(s.name)}</span>`;
+
+  const fill = s.fan_speed + '%';
+  const is12thGen = GEN12_MODELS.has(s.server_model || '');
+
+  document.getElementById('contentArea').innerHTML = `
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <div class="page-title">${esc(s.name)}</div>
+        <div class="page-subtitle">
+          ${esc(s.host)}:${s.port}
+          &nbsp;&mdash;&nbsp;
+          ${esc(modelLabel(s.server_model))}
+          &nbsp;&mdash;&nbsp;
+          <span id="connStatus" class="conn-wait">Connecting…</span>
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEditModal(${s.id})">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </button>
+        <button class="btn btn-primary btn-sm" id="applyBtn" onclick="applySettings(${s.id})">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Apply Settings
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteServer(${s.id})">Remove</button>
+      </div>
+    </div>
+
+    <!-- Fan Control Section -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Fan Control Configuration</span>
+      </div>
+      <div class="section-body">
+
+        <div class="control-row">
+          <div>
+            <div class="control-label">Manual Fan Control</div>
+            <div class="control-desc">Override the iDRAC automatic fan speed algorithm with a fixed percentage</div>
+          </div>
+          <label class="dell-toggle">
+            <input type="checkbox" id="t_manual" ${s.manual_fan_control ? 'checked' : ''}
+              onchange="toggleManual(${s.id}, this.checked)">
+            <div class="dell-toggle-track"></div>
+          </label>
+        </div>
+
+        ${!is12thGen ? `
+        <div class="control-row">
+          <div>
+            <div class="control-label">Disable 3rd-Party PCIe Fan Ramp-Up</div>
+            <div class="control-desc">Prevents iDRAC from ramping all fans to 100% when non-Dell PCIe cards are installed</div>
+          </div>
+          <label class="dell-toggle">
+            <input type="checkbox" id="t_3rd" ${s.disable_3rd_party_fan ? 'checked' : ''}
+              onchange="toggle3rd(${s.id}, this.checked)">
+            <div class="dell-toggle-track"></div>
+          </label>
+        </div>` : `
+        <div class="control-row" style="opacity:.45; pointer-events:none;">
+          <div>
+            <div class="control-label">Disable 3rd-Party PCIe Fan Ramp-Up</div>
+            <div class="control-desc">Not supported on 12th-generation iDRAC7 servers</div>
+          </div>
+          <label class="dell-toggle">
+            <input type="checkbox" disabled>
+            <div class="dell-toggle-track"></div>
+          </label>
+        </div>`}
+
+        <div class="control-row">
+          <div>
+            <div class="control-label">Auto-Apply Settings</div>
+            <div class="control-desc">Re-sends IPMI commands every 5 minutes — ensures settings survive iDRAC resets or server reboots</div>
+          </div>
+          <label class="dell-toggle">
+            <input type="checkbox" id="t_auto" ${s.auto_apply ? 'checked' : ''}
+              onchange="toggleAutoApply(${s.id}, this.checked)">
+            <div class="dell-toggle-track"></div>
+          </label>
+        </div>
+
+        <!-- Fan Speed Slider -->
+        <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-light);">
+          <div style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px;">
+            Fan Speed Setpoint &nbsp;<span style="font-weight:400;">(Manual Mode Only)</span>
+          </div>
+          <div class="speed-display">
+            <span class="speed-number" id="speedVal">${s.fan_speed}</span>
+            <span class="speed-unit">%</span>
+          </div>
+          <input type="range" min="5" max="100" step="5" value="${s.fan_speed}"
+            id="speedSlider"
+            style="--fill:${fill}"
+            oninput="onSpeedInput(this)"
+            onchange="updateSpeed(${s.id}, this.value)">
+          <div class="range-labels">
+            <span>5%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+          </div>
+          <div class="speed-note">Minimum recommended: 10% for proper airflow. Setting below 5% may cause thermal events.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fan Sensor Readings Section -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Fan Sensor Readings</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadFans({id:${s.id}})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div id="fanReadings" style="min-height:60px;">
+        <div style="padding:16px 14px; color:var(--muted);">Fetching sensor data…</div>
+      </div>
+    </div>
+
+  `;
+}
+
+function onSpeedInput(el) {
+  document.getElementById('speedVal').textContent = el.value;
+  el.style.setProperty('--fill', el.value + '%');
+}
+
+// ── Connection test ─────────────────────────────────────────
+async function pingServer(s) {
+  const el = document.getElementById('connStatus');
+  const dot = document.getElementById(`dot-${s.id}`);
+  try {
+    const res = await api('POST', `/servers/${s.id}/test`);
+    if (res.ok) {
+      if (el) el.innerHTML = '<span class="conn-ok">&#x25CF; Connected</span>';
+      if (dot) { dot.classList.add('online'); dot.classList.remove('offline'); }
+    } else {
+      const d = await res.json();
+      if (el) el.innerHTML = `<span class="conn-err">&#x25CF; ${esc(d.output || 'Connection failed')}</span>`;
+      if (dot) { dot.classList.add('offline'); dot.classList.remove('online'); }
+    }
+  } catch(e) {
+    if (el) el.innerHTML = '<span class="conn-err">&#x25CF; Unreachable</span>';
+  }
+}
+
+// ── Fan Readings ────────────────────────────────────────────
+async function loadFans(s) {
+  const el = document.getElementById('fanReadings');
+  if (!el) return;
+  try {
+    const res = await api('GET', `/servers/${s.id}/fans`);
+    if (res.ok) {
+      const fans = await res.json();
+      if (!fans.length) {
+        el.innerHTML = '<div style="padding:14px; color:var(--muted); font-size:13px;">No fan sensor data returned by iDRAC.</div>';
+        return;
+      }
+      el.innerHTML = `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Sensor Name</th>
+              <th>Speed / Reading</th>
+              <th>Health Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${fans.map(f => {
+              const st = f.status.toLowerCase();
+              const badge = st.includes('ok') ? 'badge-ok'
+                          : st.includes('cr') ? 'badge-err'
+                          : 'badge-warn';
+              return `<tr>
+                <td>${esc(f.name)}</td>
+                <td><strong>${esc(f.value)}</strong></td>
+                <td><span class="badge ${badge}">${esc(f.status)}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    } else {
+      const d = await res.json();
+      el.innerHTML = `<div class="alert alert-error" style="margin:12px 14px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        IPMI Error: ${esc(d.error)}
+      </div>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div style="padding:14px; color:var(--red);">Failed to retrieve sensor data.</div>`;
+  }
+}
+
+// ── Apply Settings ──────────────────────────────────────────
+async function applySettings(id) {
+  const btn = document.getElementById('applyBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Applying…`;
+
+  const style = document.createElement('style');
+  style.textContent = '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
+  document.head.appendChild(style);
+
+  const res = await api('POST', `/servers/${id}/apply`);
+  const data = await res.json();
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Apply Settings`;
+
+  const errs = Object.entries(data).filter(([,v]) => v !== 'ok' && !v.startsWith('ok'));
+  if (errs.length) {
+    toast('Error: ' + errs.map(([k,v]) => `${k}: ${v}`).join('; '), 'error');
+  } else {
+    toast('Settings applied to iDRAC successfully.', 'success');
+  }
+}
+
+// ── Toggle handlers ─────────────────────────────────────────
+async function toggleManual(id, val)    { await api('PUT', `/servers/${id}`, { manual_fan_control:    val ? 1 : 0 }); }
+async function toggle3rd(id, val)       { await api('PUT', `/servers/${id}`, { disable_3rd_party_fan: val ? 1 : 0 }); }
+async function toggleAutoApply(id, val) { await api('PUT', `/servers/${id}`, { auto_apply:             val ? 1 : 0 }); }
+async function updateSpeed(id, val)     { await api('PUT', `/servers/${id}`, { fan_speed: parseInt(val) }); }
+
+// ── Delete ──────────────────────────────────────────────────
+async function deleteServer(id) {
+  if (!confirm('Remove this server from management? This action cannot be undone.')) return;
+  await api('DELETE', `/servers/${id}`);
+  selectedId = null;
+  document.getElementById('breadcrumb').innerHTML =
+    `<a href="#">Fan Control</a> <span>›</span> <span>Overview</span>`;
+  document.getElementById('contentArea').innerHTML = `
+    <div class="empty-state">
+      <div class="icon-wrap"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+      <h3>Server Removed</h3>
+      <p>Select another server from the sidebar or add a new one.</p>
+    </div>`;
+  await loadServers();
+  toast('Server removed.', 'success');
+}
+
+// ── Modal ───────────────────────────────────────────────────
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add Managed System';
+  ['f_name','f_host','f_user','f_pass'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f_port').value = 623;
+  document.getElementById('f_model').value = 'R730xd';
+  document.getElementById('serverModal').classList.add('open');
+  document.getElementById('f_name').focus();
+}
+
+async function openEditModal(id) {
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit System Configuration';
+  const res = await api('GET', `/servers/${id}`);
+  const s = await res.json();
+  document.getElementById('f_model').value = s.server_model || 'R730xd';
+  document.getElementById('f_name').value = s.name;
+  document.getElementById('f_host').value = s.host;
+  document.getElementById('f_port').value = s.port;
+  document.getElementById('f_user').value = s.username;
+  document.getElementById('f_pass').value = '';
+  document.getElementById('serverModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('serverModal').classList.remove('open');
+}
+
+async function saveServer() {
+  const model    = document.getElementById('f_model').value;
+  const name     = document.getElementById('f_name').value.trim();
+  const host     = document.getElementById('f_host').value.trim();
+  const port     = parseInt(document.getElementById('f_port').value) || 623;
+  const username = document.getElementById('f_user').value.trim();
+  const password = document.getElementById('f_pass').value;
+
+  if (!name || !host || !username) {
+    toast('System name, iDRAC address, and username are required.', 'error');
+    return;
+  }
+
+  if (editingId) {
+    const body = { name, host, port, username, server_model: model };
+    if (password) body.password = password;
+    await api('PUT', `/servers/${editingId}`, body);
+    toast('System configuration updated.', 'success');
+    closeModal();
+    await loadServers();
+    selectServer(editingId);
+  } else {
+    if (!password) { toast('Password is required for new systems.', 'error'); return; }
+    const res = await api('POST', '/servers', { name, host, port, username, password, server_model: model });
+    const data = await res.json();
+    toast('System added successfully.', 'success');
+    closeModal();
+    await loadServers();
+    selectServer(data.id);
+  }
+}
+
+// Backdrop close
+document.getElementById('serverModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// Init
+loadServers();
+</script>
+</body>
+</html>

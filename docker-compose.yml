@@ -1,0 +1,14 @@
+services:
+  fan-control:
+    build: .
+    container_name: dell-fan-control
+    restart: unless-stopped
+    ports:
+      - "8765:5000"
+    volumes:
+      - fan_data:/data
+    environment:
+      - TZ=America/New_York
+
+volumes:
+  fan_data:
