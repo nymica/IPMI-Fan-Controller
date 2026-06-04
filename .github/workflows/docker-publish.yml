@@ -1,0 +1,59 @@
+name: Build, Scan, and Push Docker Image
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers only when you push a semantic version tag (e.g., v1.0.0)
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the source code
+        uses: actions/checkout@v4
+
+      # Set up QEMU for multi-platform emulation (needed for ARM64 builds)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Set up the advanced Docker BuildKit engine
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the image LOCALLY first so it can be scanned before pushing
+      - name: Build local image for testing & scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true # Saves the image to the local Docker daemon instead of pushing it
+          tags: local-scan-target:latest
+
+      # Run the security vulnerability scan
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'local-scan-target:latest'
+          format: 'table'
+          exit-code: '1' # Fails the pipeline if "CRITICAL" vulnerabilities are found
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
+
+      # Log in to Docker Hub (only reached if the security scan passes)
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build the final Multi-Platform image and push it to Docker Hub
+      - name: Build and push Multi-Platform image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64 # Builds for both standard servers and Apple Silicon / ARM devices
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/your-repo-name:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/your-repo-name:${{ github.ref_name }}
