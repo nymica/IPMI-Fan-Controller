@@ -58,5 +58,5 @@ jobs:
           platforms: linux/amd64,linux/arm64 # Builds for both standard servers and Apple Silicon / ARM devices
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/IPMI-Fan-Controller:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/IPMI-Fan-Controller:${{ github.ref_name }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/ipmi-fan-controller:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/ipmi-fan-controller:${{ github.ref_name }}
