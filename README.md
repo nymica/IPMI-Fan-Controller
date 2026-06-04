@@ -2,6 +2,25 @@
 
 A self-hosted web UI for managing Dell PowerEdge server fan speeds over IPMI. Set a fixed fan speed, suppress the 3rd-party PCIe card ramp-up, and let the app continuously re-apply your settings so they survive iDRAC resets and reboots.
 
+[![Docker Hub](https://img.shields.io/docker/pulls/nymica/ipmi-fan-controller?style=flat-square&logo=docker)](https://hub.docker.com/r/nymica/ipmi-fan-controller)
+[![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
+
+---
+
+## Screenshots
+
+![Fan Control Dashboard](docs/images/dashboard.png)
+*Fan Control Configuration — manual speed control, PCIe ramp-up suppression, and auto-apply toggles*
+
+![Fan Sensor Readings](docs/images/fan-sensors.png)
+*Live fan sensor readings polled directly from iDRAC*
+
+![Add Managed System](docs/images/add-server.png)
+*Add a new managed server — select model, enter iDRAC credentials*
+
+![Server Model List](docs/images/server-models-1.png)
+*Grouped server model selector — 12th through 16th generation PowerEdge servers*
+
 ---
 
 ## Features
@@ -41,31 +60,46 @@ Fan speed control (`raw 0x30 0x30`) works across all supported generations. The 
 
 ## Quick Start
 
-### 1. Clone the repository
+### Option A — Docker Hub (recommended)
+
+```bash
+docker pull nymica/ipmi-fan-controller
+```
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  ipmi-fan-controller:
+    image: nymica/ipmi-fan-controller:latest
+    container_name: ipmi-fan-controller
+    restart: unless-stopped
+    ports:
+      - "8765:5000"
+    volumes:
+      - fan_data:/data
+    environment:
+      - TZ=America/Chicago
+
+volumes:
+  fan_data:
+```
+
+Then start it:
+
+```bash
+docker compose up -d
+```
+
+### Option B — Build from source
 
 ```bash
 git clone https://github.com/nymica/IPMI-Fan-Controller.git
 cd IPMI-Fan-Controller
-```
-
-### 2. (Optional) Adjust the port or timezone
-
-Edit `docker-compose.yml` if you want a different host port or timezone:
-
-```yaml
-ports:
-  - "8765:5000"       # change 8765 to any free port on your host
-environment:
-  - TZ=America/New_York
-```
-
-### 3. Build and start
-
-```bash
 docker compose up -d --build
 ```
 
-### 4. Open the web UI
+### Open the web UI
 
 ```
 http://<your-docker-host>:8765
@@ -75,7 +109,7 @@ http://<your-docker-host>:8765
 
 ## Adding a Server
 
-1. Click **Add Server** in the left sidebar.
+1. Click **+ Add Server** in the left sidebar.
 2. Select your **Server Model** from the dropdown — this determines which IPMI commands are applied.
 3. Fill in the **System Name**, **iDRAC IP / Hostname**, **IPMI Port** (default 623), **Username**, and **Password**.
 4. Click **Save System**.
@@ -95,7 +129,7 @@ Each managed server has three independent settings:
 
 ### Fan Speed Setpoint
 
-The slider sets the fan speed percentage when **Manual Fan Control** is enabled. Range is 5–100% in 5% increments.
+The slider sets the fan speed percentage when **Manual Fan Control** is enabled. Range is 5–100%.
 
 > **Minimum recommended:** 10% for adequate airflow. Setting fans too low on heavily loaded servers can cause thermal events.
 
@@ -130,7 +164,7 @@ Server credentials and settings are stored in a SQLite database inside a named D
 To back up your configuration:
 
 ```bash
-docker cp dell-fan-control:/data/servers.db ./servers.db.bak
+docker cp ipmi-fan-controller:/data/servers.db ./servers.db.bak
 ```
 
 ---
@@ -138,7 +172,11 @@ docker cp dell-fan-control:/data/servers.db ./servers.db.bak
 ## Updating
 
 ```bash
-docker compose pull   # if using a registry image
+# Docker Hub
+docker compose pull
+docker compose up -d
+
+# Built from source
 docker compose up -d --build
 ```
 
@@ -172,4 +210,4 @@ Your database volume is preserved automatically.
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](LICENSE).
+Copyright 2026 Chris Wiedmaier. Licensed under the [Apache License, Version 2.0](LICENSE).
