@@ -1,7 +1,5 @@
 name: Build, Scan, and Push Docker Image
 
-name: Build, Scan, and Push Docker Image
-
 on:
   push:
     branches:
