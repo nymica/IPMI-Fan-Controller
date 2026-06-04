@@ -1,9 +1,14 @@
 name: Build, Scan, and Push Docker Image
 
+name: Build, Scan, and Push Docker Image
+
 on:
   push:
+    branches:
+      - main  # Triggers automatically every time you upload/edit files on main
     tags:
-      - 'v*.*.*'  # Triggers only when you push a semantic version tag (e.g., v1.0.0)
+      - 'v*'   # Triggers on any tag starting with "v" (e.g., v1, v1.0, v1.0.0)
+  workflow_dispatch: # Adds a manual "Run workflow" button in the browser UI
 
 jobs:
   build-and-scan:
